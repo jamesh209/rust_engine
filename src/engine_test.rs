@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use wgpu::util::DeviceExt;
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::EventLoop,
+    event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder}
 };
 
@@ -250,10 +250,10 @@ impl State {
 }
 
 pub async fn run() {
-    env_logger::init();
+    //env_logger::init();
     
-    let event_loop = EventLoop::new().unwrap();
-
+    let event_loop: EventLoop<()> = EventLoop::new().unwrap();
+    event_loop.set_control_flow(ControlFlow::Poll);
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let window = Arc::new(window);
@@ -262,20 +262,22 @@ pub async fn run() {
 
 
     let _ = event_loop.run(move |event, eltw| {
-           match event {
+            println!("{event:?}");
+           
+            match event {
             Event::WindowEvent {
                 window_id,
                 event 
             } if window_id == state.window.id() => match event {
                 WindowEvent::CloseRequested => eltw.exit(),
-                WindowEvent::RedrawRequested => {
-                    state.render();
-                },
+                // WindowEvent::RedrawRequested => {
+                //     state.render();
+                // },
                 _ => (),
-                },
-            Event::AboutToWait => {
-                state.window.request_redraw();
-            }
+            },
+            // Event::AboutToWait => {
+            //     state.window.request_redraw();
+            // },
             _ => (),
         }
    });
