@@ -1,10 +1,48 @@
 use wgpu::InstanceDescriptor;
 use std::{collections::HashMap, sync::Arc};
+use wgpu::util::DeviceExt;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
     window::{Window, WindowBuilder}
 };
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBS,
+        }
+    }
+}
+
+const VERTICES: &[Vertex] = &[
+    Vertex { position: [-1.0, -1.0, 0.0], color: [1.0, 0.0, 0.0] },
+    Vertex { position: [1.0, -1.0, 0.0], color: [0.0, 1.0, 0.0] },
+    Vertex { position: [-1.0, 1.0, 0.0], color: [0.0, 0.0, 1.0] },
+    Vertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 1.0] },
+];
+
+const INDICES: &[u16] = &[
+    0, 1, 2,
+    2, 1, 3,
+];
+
+unsafe impl bytemuck::Pod for Vertex {}
+unsafe impl bytemuck::Zeroable for Vertex {}
 
 struct State<> {
     surface: wgpu::Surface<'static>,
@@ -13,6 +51,8 @@ struct State<> {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
 
     window: Arc<Window>
 }
@@ -83,7 +123,9 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main", // 1.
-                buffers: &[], // 2.
+                buffers: &[
+                    Vertex::desc(),
+                ],
             },
             fragment: Some(wgpu::FragmentState { // 3.
                 module: &shader,
@@ -115,6 +157,22 @@ impl State {
             multiview: None, // 5.
         });
 
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(VERTICES),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(INDICES),
+                usage: wgpu::BufferUsages::INDEX,
+            }
+        );
+
         Self {
             surface,
             device,
@@ -122,6 +180,8 @@ impl State {
             config,
             size,
             render_pipeline,
+            vertex_buffer,
+            index_buffer,
             window,
         }
     }
@@ -162,7 +222,7 @@ impl State {
                             r: 0.1,
                             g: 0.2,
                             b: 0.3,
-                            a: 1.0,
+                            a: 0.5,
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -172,8 +232,13 @@ impl State {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline); // 2.
-            render_pass.draw(0..3, 0..1); // 3.
+            println!("{}", INDICES.len() as u32);
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            //render_pass.draw(0..6, 0..1);
+            render_pass.draw_indexed(0..6, 0, 0..1)
         }
     
         // submit will accept anything that implements IntoIter
@@ -195,17 +260,15 @@ pub async fn run() {
 
     let mut state = State::new(window).await;
 
-    let _ = event_loop.run(move |event, eltw| {
-        println!("{event:?}");
 
-        match event {
+    let _ = event_loop.run(move |event, eltw| {
+           match event {
             Event::WindowEvent {
                 window_id,
                 event 
             } if window_id == state.window.id() => match event {
                 WindowEvent::CloseRequested => eltw.exit(),
                 WindowEvent::RedrawRequested => {
-                    println!("redraw requested");
                     state.render();
                 },
                 _ => (),
@@ -213,7 +276,7 @@ pub async fn run() {
             Event::AboutToWait => {
                 state.window.request_redraw();
             }
-            _ =>(),
+            _ => (),
         }
    });
 }
