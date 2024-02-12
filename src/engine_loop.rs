@@ -1,39 +1,45 @@
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop}
+    event_loop::{ControlFlow, EventLoop},
+    window::{Window},
+    error::EventLoopError,
 };
 
-struct EngineLoop {
+use std::{task::Poll, time::Instant, vec::Vec};
+
+pub struct EngineLoop {
     event_loop: EventLoop<()>,
-    target_frame_time: i32,
+    target_frame_time: u128,
+    windows: Vec<Window>
 }
 
 impl EngineLoop {
     pub fn new() -> EngineLoop {
         let event_loop: EventLoop<()> = EventLoop::new().unwrap();
-        let target_frame_time = 17;
+        let target_frame_time: u128 = 17;
+        let windows = Vec::new();
 
         Self{
             event_loop,
             target_frame_time,
-        };
+            windows
+        }
     }
 
-    pub async fn start(&self){
-        event_loop.set_control_flow(ControlFlow::Poll);
+    pub async fn start(self) -> Result<(), EventLoopError> {
+        self.event_loop.set_control_flow(ControlFlow::Poll);
 
-        event_loop.run(move |event, eltw| {           
+        let mut now = Instant::now();
+        self.event_loop.run(move |event, eltw| {
             match event {
-            Event::WindowEvent { window_id, event } if window_id == state.window.id() => match event {
-                WindowEvent::CloseRequested => eltw.exit(),
+                Event::NewEvents(poll) => {
+                    if now.elapsed().as_millis() >= self.target_frame_time {
+                        now = Instant::now();
+                        // perform an update
+                    }
+                },
                 _ => (),
-            },
-            _ => (),
             }
-        });
-    }
-
-    pub async fn add_new_window(&self) {
-        todo!()
+        })
     }
 }
