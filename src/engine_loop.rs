@@ -1,16 +1,15 @@
 use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::{Window},
-    error::EventLoopError,
+    error::EventLoopError, event::{Event, WindowEvent}, event_loop::{self, ControlFlow, EventLoop}, window::Window
 };
 
 use std::{task::Poll, time::Instant, vec::Vec};
 
+use crate::engine_window::WindowContenProvider;
+
 pub struct EngineLoop {
     event_loop: EventLoop<()>,
     target_frame_time: u128,
-    windows: Vec<Window>
+    windows: Vec<Box<dyn WindowContenProvider>>
 }
 
 impl EngineLoop {
@@ -26,6 +25,13 @@ impl EngineLoop {
         }
     }
 
+    pub fn add_new_window<F>(&mut self, constructor: F)
+    where
+        F: FnOnce(&EventLoop<()>) -> Box<dyn WindowContenProvider>
+    {
+        self.windows.push(constructor(&self.event_loop));
+    }
+
     pub async fn start(self) -> Result<(), EventLoopError> {
         self.event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -37,6 +43,9 @@ impl EngineLoop {
                         now = Instant::now();
                         // perform an update
                     }
+                },
+                Event::WindowEvent { window_id, event } => {
+                    println!("{event:?}")
                 },
                 _ => (),
             }
