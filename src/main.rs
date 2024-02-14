@@ -13,8 +13,8 @@ fn main() {
     
     let viewport_window_builder = WindowBuilder::new();
     
-    engine_loop.add_new_window(|event_loop| engine_window::EngineViewport::new_as_provider(event_loop, viewport_window_builder));
-    
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(engine_loop.create_new_viewport());
     runtime.block_on(engine_loop.start());
 }

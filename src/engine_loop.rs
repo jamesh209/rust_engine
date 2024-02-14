@@ -1,35 +1,47 @@
+use wgpu::core::instance;
 use winit::{
     error::EventLoopError, event::{Event, WindowEvent}, event_loop::{self, ControlFlow, EventLoop}, window::Window
 };
 
-use std::{task::Poll, time::Instant, vec::Vec};
+use std::{time::Instant, vec::Vec, sync::Arc};
 
-use crate::engine_window::WindowContenProvider;
+use crate::engine_window::ViewportDesc;
+use crate::engine_window::Viewport;
 
-pub struct EngineLoop {
+pub struct EngineLoop<'a> {
     event_loop: EventLoop<()>,
     target_frame_time: u128,
-    windows: Vec<Box<dyn WindowContenProvider>>
+    viewports: Vec<Viewport<'a>>
 }
 
-impl EngineLoop {
-    pub fn new() -> EngineLoop {
+impl<'a> EngineLoop<'a> {
+    pub fn new() -> EngineLoop<'a> {
         let event_loop: EventLoop<()> = EventLoop::new().unwrap();
         let target_frame_time: u128 = 17;
-        let windows = Vec::new();
+        let viewports = Vec::new();
 
         Self{
             event_loop,
             target_frame_time,
-            windows
+            viewports,
         }
     }
 
-    pub fn add_new_window<F>(&mut self, constructor: F)
-    where
-        F: FnOnce(&EventLoop<()>) -> Box<dyn WindowContenProvider>
+    pub async fn create_new_viewport(&mut self)
     {
-        self.windows.push(constructor(&self.event_loop));
+        let window = winit::window::WindowBuilder::new()
+                    .with_title(format!("Viewport"))
+                    .with_inner_size(winit::dpi::PhysicalSize::new(600, 800))
+                    .build(&self.event_loop)
+                    .unwrap();
+
+        let window = Arc::new(window);
+
+        let instance = wgpu::Instance::default();
+
+        let ViewportDesc = ViewportDesc::new(window, wgpu::Color::GREEN, &instance);
+
+        self.viewports.push(ViewportDesc.build(&instance).await);
     }
 
     pub async fn start(self) -> Result<(), EventLoopError> {
