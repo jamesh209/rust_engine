@@ -5,7 +5,7 @@ use winit::{
 
 use std::{time::Instant, vec::Vec, sync::Arc};
 
-use crate::engine_window::ViewportDesc;
+use crate::engine_window::{ViewportDesc, WindowContent};
 use crate::engine_window::Viewport;
 
 pub struct EngineLoop<'a> {
@@ -18,7 +18,7 @@ impl<'a> EngineLoop<'a> {
     pub fn new() -> EngineLoop<'a> {
         let event_loop: EventLoop<()> = EventLoop::new().unwrap();
         let target_frame_time: u128 = 17;
-        let viewports = Vec::new();
+        let mut viewports = Vec::new();
 
         Self{
             event_loop,
@@ -31,7 +31,7 @@ impl<'a> EngineLoop<'a> {
     {
         let window = winit::window::WindowBuilder::new()
                     .with_title(format!("Viewport"))
-                    .with_inner_size(winit::dpi::PhysicalSize::new(600, 800))
+                    .with_inner_size(winit::dpi::PhysicalSize::new(800, 600))
                     .build(&self.event_loop)
                     .unwrap();
 
@@ -44,7 +44,7 @@ impl<'a> EngineLoop<'a> {
         self.viewports.push(ViewportDesc.build(&instance).await);
     }
 
-    pub async fn start(self) -> Result<(), EventLoopError> {
+    pub async fn start(mut self) -> Result<(), EventLoopError> {
         self.event_loop.set_control_flow(ControlFlow::Poll);
 
         let mut now = Instant::now();
@@ -55,10 +55,19 @@ impl<'a> EngineLoop<'a> {
                         now = Instant::now();
                         // perform an update
                     }
+                    self.viewports.retain(| viewport | !viewport.should_close);
+                    if self.viewports.is_empty() {
+                        eltw.exit();
+                    }
                 },
                 Event::WindowEvent { window_id, event } => {
-                    println!("{event:?}")
-                },
+                    match self.viewports.iter_mut().find(|viewport| viewport.get_window_id() == window_id) {
+                        Some(viewport) => {
+                            viewport.handle_inputs(&event);
+                        }
+                        _ => (),
+                    }
+                },  
                 _ => (),
             }
         })

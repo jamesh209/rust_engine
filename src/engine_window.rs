@@ -1,7 +1,7 @@
 use winit::{
     event::{WindowEvent},
     event_loop::{EventLoop},
-    window::{Window, WindowBuilder}
+    window::{Window, WindowId}
 };
 
 use wgpu::{
@@ -28,6 +28,7 @@ pub struct ViewportDesc<'a> {
 pub struct Viewport<'a>{
     viewport_desc: ViewportDesc<'a>,
     config: wgpu::SurfaceConfiguration,
+    pub should_close: bool,
 }
 
 impl<'a>  ViewportDesc<'a> {
@@ -68,7 +69,10 @@ impl<'a>  ViewportDesc<'a> {
             .get_default_config(&adapter, size.width, size.height)
             .unwrap();
         self.surface.configure(&device, &config);
-        Viewport { viewport_desc: self, config }
+
+        let should_close = false;
+
+        return Viewport { viewport_desc: self, config, should_close };
     }
 }
 
@@ -83,5 +87,31 @@ impl<'a> Viewport<'a> {
             .surface
             .get_current_texture()
             .expect("Failed to acquire next swap chain texture")
+    }
+
+    pub fn get_window_id(&self) -> WindowId {
+        return self.viewport_desc.window.id();
+    }
+}
+
+impl<'a> WindowContent for Viewport<'a> {
+    fn handle_inputs(&mut self, event : &WindowEvent) {
+        match event {
+            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
+                println!("{event:?}");
+            },
+            WindowEvent::CloseRequested => {
+                self.should_close = true;
+            }
+            _ => (),
+        }
+    }
+
+    fn render(&mut self) {
+        
+    }
+
+    fn resize(&mut self, device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) {
+        
     }
 }
