@@ -1,10 +1,10 @@
-use wgpu::InstanceDescriptor;
 use std::{collections::HashMap, sync::Arc};
 use wgpu::util::DeviceExt;
+use wgpu::InstanceDescriptor;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder}
+    window::{Window, WindowBuilder},
 };
 
 #[repr(C)]
@@ -30,21 +30,30 @@ impl Vertex {
 }
 
 const VERTICES: &[Vertex] = &[
-    Vertex { position: [-1.0, -1.0, 0.0], color: [1.0, 0.0, 0.0] },
-    Vertex { position: [1.0, -1.0, 0.0], color: [0.0, 1.0, 0.0] },
-    Vertex { position: [-1.0, 1.0, 0.0], color: [0.0, 0.0, 1.0] },
-    Vertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [1.0, -1.0, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [-1.0, 1.0, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        color: [1.0, 1.0, 1.0],
+    },
 ];
 
-const INDICES: &[u16] = &[
-    0, 1, 2,
-    2, 1, 3,
-];
+const INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];
 
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
 
-struct State<> {
+struct State {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -54,41 +63,46 @@ struct State<> {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
 
-    window: Arc<Window>
+    window: Arc<Window>,
 }
 
 impl State {
     async fn new(window: Arc<Window>) -> Self {
-        
         let size = window.inner_size();
-        
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor{
+
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
 
         let surface = instance.create_surface(window.clone()).unwrap();
 
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptionsBase { 
-                power_preference: wgpu::PowerPreference::default(), 
-                force_fallback_adapter: false, 
-                compatible_surface: Some(&surface) 
-            }
-        ).await.unwrap();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptionsBase {
+                power_preference: wgpu::PowerPreference::default(),
+                force_fallback_adapter: false,
+                compatible_surface: Some(&surface),
+            })
+            .await
+            .unwrap();
 
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-                label: None,
-            },
-            None, // Trace path
-        ).await.unwrap();
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None, // Trace path
+            )
+            .await
+            .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
 
-        let surface_format = surface_caps.formats.iter()
+        let surface_format = surface_caps
+            .formats
+            .iter()
             .copied()
             .filter(|f| f.is_srgb())
             .next()
@@ -102,7 +116,7 @@ impl State {
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
-            desired_maximum_frame_latency: 5
+            desired_maximum_frame_latency: 5,
         };
         surface.configure(&device, &config);
 
@@ -111,26 +125,27 @@ impl State {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        });
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {   
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main", // 1.
-                buffers: &[
-                    Vertex::desc(),
-                ],
+                buffers: &[Vertex::desc()],
             },
-            fragment: Some(wgpu::FragmentState { // 3.
+            fragment: Some(wgpu::FragmentState {
+                // 3.
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState { // 4.
+                targets: &[Some(wgpu::ColorTargetState {
+                    // 4.
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
@@ -150,28 +165,24 @@ impl State {
             },
             depth_stencil: None, // 1.
             multisample: wgpu::MultisampleState {
-                count: 1, // 2.
-                mask: !0, // 3.
+                count: 1,                         // 2.
+                mask: !0,                         // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
             multiview: None, // 5.
         });
 
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(INDICES),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         Self {
             surface,
@@ -203,13 +214,20 @@ impl State {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture().expect("Failed to get texture");
+        let output = self
+            .surface
+            .get_current_texture()
+            .expect("Failed to get texture");
 
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -232,26 +250,24 @@ impl State {
                 timestamp_writes: None,
             });
 
-            println!("{}", INDICES.len() as u32);
-
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             //render_pass.draw(0..6, 0..1);
             render_pass.draw_indexed(0..6, 0, 0..1)
         }
-    
+
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
-    
+
         Ok(())
     }
 }
 
 pub async fn run() {
     //env_logger::init();
-    
+
     let event_loop: EventLoop<()> = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -260,25 +276,23 @@ pub async fn run() {
 
     let mut state = State::new(window).await;
 
-
     let _ = event_loop.run(move |event, eltw| {
-            println!("{event:?}");
-           
-            match event {
-            Event::WindowEvent {
-                window_id,
-                event 
-            } if window_id == state.window.id() => match event {
-                WindowEvent::CloseRequested => eltw.exit(),
-                // WindowEvent::RedrawRequested => {
-                //     state.render();
-                // },
-                _ => (),
-            },
+        println!("{event:?}");
+
+        match event {
+            Event::WindowEvent { window_id, event } if window_id == state.window.id() => {
+                match event {
+                    WindowEvent::CloseRequested => eltw.exit(),
+                    // WindowEvent::RedrawRequested => {
+                    //     state.render();
+                    // },
+                    _ => (),
+                }
+            }
             // Event::AboutToWait => {
             //     state.window.request_redraw();
             // },
             _ => (),
         }
-   });
+    });
 }
