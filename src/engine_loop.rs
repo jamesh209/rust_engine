@@ -39,9 +39,9 @@ impl<'a> EngineLoop<'a> {
 
         let instance = wgpu::Instance::default();
 
-        let ViewportDesc = ViewportDesc::new(window, wgpu::Color::GREEN, &instance);
+        let viewport_desc = ViewportDesc::new(window, wgpu::Color::GREEN, &instance);
 
-        self.viewports.push(ViewportDesc.build(&instance).await);
+        self.viewports.push(viewport_desc.build(&instance).await);
     }
 
     pub async fn start(mut self) -> Result<(), EventLoopError> {
@@ -55,6 +55,8 @@ impl<'a> EngineLoop<'a> {
                         now = Instant::now();
                         // perform an update
                     }
+
+                    // remove viewports that want to close
                     self.viewports.retain(| viewport | !viewport.should_close);
                     if self.viewports.is_empty() {
                         eltw.exit();

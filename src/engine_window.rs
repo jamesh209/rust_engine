@@ -1,6 +1,8 @@
 use winit::{
-    event::{WindowEvent},
-    event_loop::{EventLoop},
+    event::{KeyEvent, WindowEvent}, 
+    event_loop::EventLoop, 
+    keyboard::{Key, NamedKey},
+    platform::modifier_supplement::KeyEventExtModifierSupplement,
     window::{Window, WindowId}
 };
 
@@ -97,14 +99,21 @@ impl<'a> Viewport<'a> {
 impl<'a> WindowContent for Viewport<'a> {
     fn handle_inputs(&mut self, event : &WindowEvent) {
         match event {
-            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
-                println!("{event:?}");
+            WindowEvent::KeyboardInput{ device_id, event, is_synthetic} => {
+                match event.key_without_modifiers(){
+                    Key::Named(NamedKey::Escape) => {
+                        self.should_close = true;
+                    },    
+                    _ => (),
+                }
             },
             WindowEvent::CloseRequested => {
                 self.should_close = true;
             }
             _ => (),
         }
+
+
     }
 
     fn render(&mut self) {
